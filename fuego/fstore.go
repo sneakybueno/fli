@@ -2,8 +2,8 @@ package fuego
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -34,20 +34,42 @@ func (fs *FStore) Cd(dir string) {
 	}
 }
 
+// Prompt retuns a string to be displayed
+// as a prompt to the user
+func (fs *FStore) Prompt() string {
+	return "~/" + fs.Wd()
+}
+
 // Wd (Working directory) returns the path for the "directory"
 // the FStore is currently in.
 func (fs *FStore) Wd() string {
-	path := strings.Join(fs.workingDirectory, "/")
-	return "/" + path
+	return path.Join(fs.workingDirectory...)
+}
+
+// WorkingDirectoryURL returns the firebase URL
+// for the current working directory
+func (fs *FStore) WorkingDirectoryURL() string {
+	return path.Join(fs.FirebaseURL, fs.Wd())
+}
+
+func (fs *FStore) Ls() (string, error) {
+	path := fs.Wd()
+	_, err := fs.ShallowGet(path)
+	if err != nil {
+		return "", err
+	}
+	// format v
+
+	return "", nil
 }
 
 // Networking
 // ----------------------------------------------------------------------------
 
-func (fs *FStore) buildURL(path string) (string, error) {
-	if path != "" {
-		// santanize path here
-		return fs.FirebaseURL + path + ".json", nil
+func (fs *FStore) buildURL(p string) (string, error) {
+	if p != "" {
+		u := path.Join(fs.FirebaseURL, p)
+		return u + ".json", nil
 	}
 
 	return fs.FirebaseURL + ".json", nil
@@ -88,12 +110,6 @@ func (fs *FStore) Get(path string) (interface{}, error) {
 	return fs.do(request)
 }
 
-// SGet is a helper to perform a shallow get at the current
-// store's path
-func (fs *FStore) SGet() {
-
-}
-
 // ShallowGet performs a shallow get request for the given path
 func (fs *FStore) ShallowGet(path string) (interface{}, error) {
 	p, err := fs.buildURL(path)
@@ -110,6 +126,5 @@ func (fs *FStore) ShallowGet(path string) (interface{}, error) {
 	q.Add("shallow", "true")
 	request.URL.RawQuery = q.Encode()
 
-	log.Println(request.URL.String())
 	return fs.do(request)
 }

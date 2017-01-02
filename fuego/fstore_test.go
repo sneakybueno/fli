@@ -13,42 +13,42 @@ const (
 func TestDirectoryCommands(t *testing.T) {
 	fStore := fuego.NewFStore(firebaseTestingURL)
 
-	expected := "/"
+	expected := ""
 	wd := fStore.Wd()
 	if wd != expected {
 		t.Errorf("Expected %s, got %s", expected, wd)
 	}
 
 	fStore.Cd("users")
-	expected = "/users"
+	expected = "users"
 	wd = fStore.Wd()
 	if wd != expected {
 		t.Errorf("Expected %s, got %s", expected, wd)
 	}
 
 	fStore.Cd("bueno/dev")
-	expected = "/users/bueno/dev"
+	expected = "users/bueno/dev"
 	wd = fStore.Wd()
 	if wd != expected {
 		t.Errorf("Expected %s, got %s", expected, wd)
 	}
 
 	fStore.Cd("..")
-	expected = "/users/bueno"
+	expected = "users/bueno"
 	wd = fStore.Wd()
 	if wd != expected {
 		t.Errorf("Expected %s, got %s", expected, wd)
 	}
 
 	fStore.Cd("../corgi")
-	expected = "/users/corgi"
+	expected = "users/corgi"
 	wd = fStore.Wd()
 	if wd != expected {
 		t.Errorf("Expected %s, got %s", expected, wd)
 	}
 
 	fStore.Cd("../..")
-	expected = "/"
+	expected = ""
 	wd = fStore.Wd()
 	if wd != expected {
 		t.Errorf("Expected %s, got %s", expected, wd)
