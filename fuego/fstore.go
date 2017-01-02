@@ -2,8 +2,10 @@ package fuego
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -21,6 +23,13 @@ type FStore struct {
 // since firebase is a JSON store and not an actual directory
 // structure.
 func (fs *FStore) Cd(dir string) {
+	// mimicing zsh behavior, if no arg is passed
+	// return to root directory
+	if dir == "" {
+		fs.workingDirectory = []string{}
+		return
+	}
+
 	components := strings.Split(dir, "/")
 	for _, component := range components {
 		if component == ".." {
@@ -37,7 +46,7 @@ func (fs *FStore) Cd(dir string) {
 // Prompt retuns a string to be displayed
 // as a prompt to the user
 func (fs *FStore) Prompt() string {
-	return "~/" + fs.Wd()
+	return "~/" + fs.Wd() + " > "
 }
 
 // Wd (Working directory) returns the path for the "directory"
@@ -49,18 +58,18 @@ func (fs *FStore) Wd() string {
 // WorkingDirectoryURL returns the firebase URL
 // for the current working directory
 func (fs *FStore) WorkingDirectoryURL() string {
-	return path.Join(fs.FirebaseURL, fs.Wd())
+	return fs.FirebaseURL + fs.Wd()
 }
 
+// Ls does a thing
 func (fs *FStore) Ls() (string, error) {
 	path := fs.Wd()
-	_, err := fs.ShallowGet(path)
+	data, err := fs.ShallowGet(path)
 	if err != nil {
 		return "", err
 	}
-	// format v
 
-	return "", nil
+	return firebaseDataToString(data)
 }
 
 // Networking
@@ -68,7 +77,7 @@ func (fs *FStore) Ls() (string, error) {
 
 func (fs *FStore) buildURL(p string) (string, error) {
 	if p != "" {
-		u := path.Join(fs.FirebaseURL, p)
+		u := fs.FirebaseURL + p
 		return u + ".json", nil
 	}
 
@@ -127,4 +136,31 @@ func (fs *FStore) ShallowGet(path string) (interface{}, error) {
 	request.URL.RawQuery = q.Encode()
 
 	return fs.do(request)
+}
+
+func firebaseDataToString(data interface{}) (string, error) {
+	switch v := data.(type) {
+	case int:
+		// v is an int here, so e.g. v + 1 is possible.
+		fmt.Printf("Integer: %v", v)
+		return strconv.Itoa(v), nil
+	case float64:
+		// v is a float64 here, so e.g. v + 1.0 is possible.
+		fmt.Printf("Float64: %v", v)
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case string:
+		return v, nil
+	case map[string]interface{}:
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		return strings.Join(keys, "\t"), nil
+
+	default:
+		// And here I'm feeling dumb. ;)
+		fmt.Printf("I don't know, ask stackoverflow.")
+	}
+
+	return "", fmt.Errorf("Error: Unsupported type %+v ", data)
 }
