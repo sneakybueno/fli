@@ -2,12 +2,10 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
-
 	"strings"
-
-	"errors"
 
 	"github.com/sneakybueno/fli/fuego"
 )
