@@ -1,9 +1,7 @@
 package fuego
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"path"
 	"strconv"
 	"strings"
@@ -12,11 +10,31 @@ import (
 // FStore struct is used to interact with a firebase
 // real time database
 type FStore struct {
-	client *http.Client
+	fClient *FClient
 
 	FirebaseURL      string
 	workingDirectory []string
 }
+
+// NewFStore builds a new store based on the 2 passed in params.
+// No validation is done to ensure a valid firebaseURL or a valid
+// service account.
+func NewFStore(firebaseURL string, serviceAccountPath string) (*FStore, error) {
+	fClient, err := NewFClient(firebaseURL, serviceAccountPath)
+	if err != nil {
+		return nil, err
+	}
+
+	fStore := &FStore{
+		fClient:     fClient,
+		FirebaseURL: firebaseURL,
+	}
+
+	return fStore, nil
+}
+
+// FStore Directory Commands
+// ----------------------------------------------------------------------------
 
 // Cd (Change directory) emulates the cd command on a
 // terminal. One major difference, the Cd command will never fail
@@ -64,7 +82,7 @@ func (fs *FStore) WorkingDirectoryURL() string {
 // Ls does a thing
 func (fs *FStore) Ls() (string, error) {
 	path := fs.Wd()
-	data, err := fs.ShallowGet(path)
+	data, err := fs.fClient.ShallowGet(path)
 	if err != nil {
 		return "", err
 	}
@@ -72,81 +90,14 @@ func (fs *FStore) Ls() (string, error) {
 	return firebaseDataToString(data)
 }
 
-// Networking
+// Private utilities
 // ----------------------------------------------------------------------------
-
-func (fs *FStore) buildURL(p string) (string, error) {
-	if p != "" {
-		u := fs.FirebaseURL + p
-		return u + ".json", nil
-	}
-
-	return fs.FirebaseURL + ".json", nil
-}
-
-func (fs *FStore) do(request *http.Request) (interface{}, error) {
-	resp, err := fs.client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-
-	decoder := json.NewDecoder(resp.Body)
-
-	var b interface{}
-	err = decoder.Decode(&b)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
-// FStore Get Operations
-// ----------------------------------------------------------------------------
-
-// Get performs a shallow get request for the given path
-func (fs *FStore) Get(path string) (interface{}, error) {
-	p, err := fs.buildURL(path)
-	if err != nil {
-		return nil, err
-	}
-
-	request, err := http.NewRequest("GET", p, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return fs.do(request)
-}
-
-// ShallowGet performs a shallow get request for the given path
-func (fs *FStore) ShallowGet(path string) (interface{}, error) {
-	p, err := fs.buildURL(path)
-	if err != nil {
-		return nil, err
-	}
-
-	request, err := http.NewRequest("GET", p, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	q := request.URL.Query()
-	q.Add("shallow", "true")
-	request.URL.RawQuery = q.Encode()
-
-	return fs.do(request)
-}
 
 func firebaseDataToString(data interface{}) (string, error) {
 	switch v := data.(type) {
 	case int:
-		// v is an int here, so e.g. v + 1 is possible.
-		fmt.Printf("Integer: %v", v)
 		return strconv.Itoa(v), nil
 	case float64:
-		// v is a float64 here, so e.g. v + 1.0 is possible.
-		fmt.Printf("Float64: %v", v)
 		return strconv.FormatFloat(v, 'f', -1, 64), nil
 	case string:
 		return v, nil
@@ -156,11 +107,7 @@ func firebaseDataToString(data interface{}) (string, error) {
 			keys = append(keys, k)
 		}
 		return strings.Join(keys, "\t"), nil
-
 	default:
-		// And here I'm feeling dumb. ;)
-		fmt.Printf("I don't know, ask stackoverflow.")
+		return "", fmt.Errorf("Error: Unsupported type %+v ", data)
 	}
-
-	return "", fmt.Errorf("Error: Unsupported type %+v ", data)
 }

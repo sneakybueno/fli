@@ -11,7 +11,9 @@ const (
 )
 
 func TestDirectoryCommands(t *testing.T) {
-	fStore := fuego.NewFStore(firebaseTestingURL)
+	fStore := &fuego.FStore{
+		FirebaseURL: firebaseTestingURL,
+	}
 
 	expected := ""
 	wd := fStore.Wd()
