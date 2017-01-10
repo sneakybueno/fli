@@ -32,3 +32,6 @@ vendor/
 # Config files
 config/
 
+# MacOS
+.DS_Store
+
