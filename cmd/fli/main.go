@@ -9,6 +9,7 @@ import (
 
 	"flag"
 
+	"github.com/skratchdot/open-golang/open"
 	"github.com/sneakybueno/fli/fuego"
 )
 
@@ -79,7 +80,12 @@ func processInput(fStore *fuego.FStore, input string) (string, error) {
 		}
 
 		p := components[1]
-		return fStore.FirebaseURLFromWorkingDirectory(p), nil
+
+		url := fStore.FirebaseURLFromWorkingDirectory(p)
+		open.Start(url)
+
+		message := fmt.Sprintf("opening (%s) in default browser", url)
+		return message, nil
 	case "pwd":
 		return fStore.FirebaseURLFromWorkingDirectory("."), nil
 	default:
