@@ -36,6 +36,53 @@ func NewFStore(firebaseURL string, serviceAccountPath string) (*FStore, error) {
 // FStore Directory Commands
 // ----------------------------------------------------------------------------
 
+// Prompt retuns a string to be displayed
+// as a prompt to the user
+func (fs *FStore) Prompt() string {
+	return "~/" + fs.BuildWorkingDirectoryPath(".") + " > "
+}
+
+// Wd (Working directory) returns the path for the "directory"
+// the FStore is currently in.
+func (fs *FStore) Wd() string {
+	return fs.BuildWorkingDirectoryPath(".")
+}
+
+// FirebaseURLFromWorkingDirectory builds the firebase URL
+// relative to the working directory. See BuildWorkingDirectoryPath
+// for more info on how the path is built.
+// Pass "" or "." to return the URL of the current working directory
+func (fs *FStore) FirebaseURLFromWorkingDirectory(path string) string {
+	return fs.FirebaseURL + fs.BuildWorkingDirectoryPath(path)
+}
+
+// BuildWorkingDirectoryPath builds the relative path
+// based on the current working directory.
+// Example: if the cwd = "/users" and path = "1234",
+// it will return users/1234
+// Pass "" or "." to return working directory path
+func (fs *FStore) BuildWorkingDirectoryPath(p string) string {
+	if p == "" || p == "." {
+		return path.Join(fs.workingDirectory...)
+	}
+
+	wd := fs.workingDirectory[:]
+
+	components := strings.Split(p, "/")
+	for _, component := range components {
+		if component == ".." {
+			length := len(wd)
+			if length > 0 {
+				wd = wd[:length-1]
+			}
+		} else {
+			wd = append(wd, component)
+		}
+	}
+
+	return path.Join(wd...)
+}
+
 // Cd (Change directory) emulates the cd command on a
 // terminal. One major difference, the Cd command will never fail
 // since firebase is a JSON store and not an actual directory
@@ -59,24 +106,6 @@ func (fs *FStore) Cd(dir string) {
 			fs.workingDirectory = append(fs.workingDirectory, component)
 		}
 	}
-}
-
-// Prompt retuns a string to be displayed
-// as a prompt to the user
-func (fs *FStore) Prompt() string {
-	return "~/" + fs.Wd() + " > "
-}
-
-// Wd (Working directory) returns the path for the "directory"
-// the FStore is currently in.
-func (fs *FStore) Wd() string {
-	return path.Join(fs.workingDirectory...)
-}
-
-// WorkingDirectoryURL returns the firebase URL
-// for the current working directory
-func (fs *FStore) WorkingDirectoryURL() string {
-	return fs.FirebaseURL + fs.Wd()
 }
 
 // Ls does a thing

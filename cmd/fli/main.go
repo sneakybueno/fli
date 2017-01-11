@@ -9,6 +9,7 @@ import (
 
 	"flag"
 
+	"github.com/skratchdot/open-golang/open"
 	"github.com/sneakybueno/fli/fuego"
 )
 
@@ -31,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
+	fmt.Printf("Time to fli @ %s\n", fStore.FirebaseURL)
 	fmt.Print(fStore.Prompt())
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -67,10 +68,26 @@ func processInput(fStore *fuego.FStore, input string) (string, error) {
 		}
 		fStore.Cd(dir)
 		return "", nil
+	case "exit":
+		os.Exit(0)
+		return "", nil
 	case "ls":
 		return fStore.Ls()
+	case "open":
+		if len(components) != 2 {
+			message := fmt.Sprintf("Usage: open [path]")
+			return "", fliError(message)
+		}
+
+		p := components[1]
+
+		url := fStore.FirebaseURLFromWorkingDirectory(p)
+		open.Start(url)
+
+		message := fmt.Sprintf("opening (%s) in default browser", url)
+		return message, nil
 	case "pwd":
-		return fStore.WorkingDirectoryURL(), nil
+		return fStore.FirebaseURLFromWorkingDirectory("."), nil
 	default:
 		message := fmt.Sprintf("command not found: %s", command)
 		return "", fliError(message)
