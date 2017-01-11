@@ -67,6 +67,9 @@ func processInput(fStore *fuego.FStore, input string) (string, error) {
 		}
 		fStore.Cd(dir)
 		return "", nil
+	case "exit":
+		os.Exit(0)
+		return "", nil
 	case "ls":
 		return fStore.Ls()
 	case "pwd":
