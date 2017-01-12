@@ -1,36 +1,52 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/sneakybueno/fli/fuego"
+	"github.com/sneakybueno/fli/shell"
 )
 
 var fStore *fuego.FStore
 
 func main() {
+	// hijack Stdin
+	stdin := shell.InitStdin()
+	// XXX: doesn't always exit cleanly :/
+	defer stdin.Cleanup()
+
 	firebaseURL := "https://go-fli.firebaseio.com/"
 	fStore = fuego.NewFStore(firebaseURL)
 
 	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
 	fmt.Print(fStore.Prompt())
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		input := scanner.Text()
+	for stdin.ReadNext() {
+		input, ok := stdin.Text()
+		if ok {
+			m, err := processInput(input)
+			if err != nil {
+				fmt.Println(err)
+			} else if m != "" {
+				fmt.Println(m)
+			}
 
-		m, err := processInput(input)
-		if err != nil {
-			fmt.Println(err)
-		} else if m != "" {
-			fmt.Println(m)
+			fmt.Print(fStore.Prompt())
+			continue
 		}
 
-		fmt.Print(fStore.Prompt())
+		// no input, check for keypresses we care about
+		keyPress := stdin.KeyPress()
+		switch keyPress {
+		case shell.ArrowUp:
+			fmt.Printf("arrow up")
+		case shell.ArrowDown:
+			fmt.Printf("arrow down")
+		case shell.Tab:
+			fmt.Printf("tab")
+		}
 	}
 }
 
