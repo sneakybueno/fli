@@ -12,10 +12,10 @@ import (
 var fStore *fuego.FStore
 
 func main() {
-	// hijack Stdin
-	stdin := shell.InitStdin()
+	// start the shell
+	s := shell.Init()
 	// XXX: doesn't always exit cleanly :/
-	defer stdin.Cleanup()
+	defer s.Cleanup()
 
 	firebaseURL := "https://go-fli.firebaseio.com/"
 	fStore = fuego.NewFStore(firebaseURL)
@@ -23,31 +23,18 @@ func main() {
 	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
 	fmt.Print(fStore.Prompt())
 
-	for stdin.ReadNext() {
-		input, ok := stdin.Text()
-		if ok {
-			m, err := processInput(input)
-			if err != nil {
-				fmt.Println(err)
-			} else if m != "" {
-				fmt.Println(m)
-			}
-
-			fmt.Print(fStore.Prompt())
-			continue
-		}
-
-		// no input, check for keypresses we care about
-		keyPress := stdin.KeyPress()
-		switch keyPress {
-		case shell.ArrowUp:
-			fmt.Printf("arrow up")
-		case shell.ArrowDown:
-			fmt.Printf("arrow down")
-		case shell.Tab:
-			fmt.Printf("tab")
-		}
+	for s.Next() {
+		prettyPrint(processInput(s.Input()))
 	}
+}
+
+func prettyPrint(result string, err error) {
+	if err != nil {
+		fmt.Println(err)
+	} else if result != "" {
+		fmt.Println(result)
+	}
+	fmt.Print(fStore.Prompt())
 }
 
 func processInput(input string) (string, error) {
