@@ -4,12 +4,14 @@ import (
 	"container/ring"
 )
 
+// CmdHistory keeps track of cmds using a ring buffer
 type CmdHistory struct {
 	max    int
 	cmds   *ring.Ring
 	offset int
 }
 
+// InitCmdHistory inits the ring buffer and sets the history's max capacity
 func InitCmdHistory(max int) *CmdHistory {
 	return &CmdHistory{
 		max:  max,
@@ -17,6 +19,7 @@ func InitCmdHistory(max int) *CmdHistory {
 	}
 }
 
+// All returns a list of all previously added commands
 func (c *CmdHistory) All() []string {
 	cmds := []string{}
 	c.reset()
@@ -27,6 +30,7 @@ func (c *CmdHistory) All() []string {
 	return cmds
 }
 
+// Next iterates "clockwise" around the ring from the current position
 func (c *CmdHistory) Next() string {
 	if c.cmds.Len() == 0 {
 		return ""
@@ -36,6 +40,7 @@ func (c *CmdHistory) Next() string {
 	return c.cmds.Value.(string)
 }
 
+// Prev iterates "counter-clockwise" around the ring from the current position
 func (c *CmdHistory) Prev() string {
 	if c.cmds.Len() == 0 {
 		return ""
@@ -48,6 +53,9 @@ func (c *CmdHistory) Prev() string {
 	return c.cmds.Value.(string)
 }
 
+// Add inserts a new cmd into the ring. If the ring is not empty, the new cmd
+// is the predecessor of the last cmd that was most recently inserted. If the
+// ring's capacity is reached, the oldest cmd is bumped.
 func (c *CmdHistory) Add(cmd string) {
 	if c.cmds.Len() == 0 {
 		c.cmds = &ring.Ring{Value: cmd}
