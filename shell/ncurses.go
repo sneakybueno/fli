@@ -10,7 +10,7 @@ import (
 const (
 	// max size of stdin buffer
 	maxBufferSize = 1024
-  // max size of any escape seq
+	// max size of any escape seq
 	escBufferSize = 5
 
 	// "enums" for keypresses
@@ -18,6 +18,7 @@ const (
 	Enter
 	ArrowUp
 	ArrowDown
+	Delete
 	Tab
 )
 
@@ -27,10 +28,6 @@ type Stdin struct {
 	buffer *bytes.Buffer
 	// buffer to hold ESC characters
 	escBuffer *bytes.Buffer
-	// is input ready to be read
-	ready bool
-	// input in friendly form
-	input string
 	// if special keypress happened, store type here
 	keypress int
 	// marks for special char input
@@ -46,40 +43,46 @@ func InitStdin() *Stdin {
 	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
 
 	return &Stdin{
-		escBuffer: bytes.NewBuffer(make([]byte, escBufferSize)),
-		buffer:    bytes.NewBuffer(make([]byte, maxBufferSize)),
+		escBuffer: bytes.NewBuffer([]byte{}),
+		buffer:    bytes.NewBuffer([]byte{}),
 	}
 }
 
-// ReadNext readies the next line of input or keypress
+// ReadNext appends to the input buffer and/or handles keypresses appropriately
 func (s *Stdin) ReadNext() bool {
-	s.keypress = None
-	s.ready = false
 	// read the byte off the wire
 	b := make([]byte, 1)
-	os.Stdin.Read(b)
+	if _, err := os.Stdin.Read(b); err != nil {
+		// TODO: Handle this better
+		return false
+	}
 
+	s.keypress = None
 	switch {
 	case s.mark:
 		s.escBuffer.Write(b)
-		if isArrowUp(s.escBuffer.Bytes()) {
+		switch {
+		case isArrowUp(s.escBuffer.Bytes()):
 			s.keypress = ArrowUp
-			s.mark = false
-		} else if isArrowDown(s.escBuffer.Bytes()) {
+			s.resetEscBuffer()
+		case isArrowDown(s.escBuffer.Bytes()):
 			s.keypress = ArrowDown
-			s.mark = false
-		} else if s.escBuffer.Len() == escBufferSize {
-			// didn't match on any special chars
-			s.escBuffer.Reset()
-			s.mark = false
+			s.resetEscBuffer()
+		case s.escBuffer.Len() == escBufferSize:
+			// didn't match on any special chars (prob not supported)
+			s.resetEscBuffer()
 		}
 	case isEsc(b):
 		// this could be the start of something special
-		s.escBuffer.Write(b)
 		s.mark = true
 	case isEnter(b):
-		s.flushBuffer()
-		fmt.Printf(string(b))
+		s.keypress = Enter
+		fmt.Print(string(b))
+	case isDel(b):
+		s.keypress = Delete
+		if s.buffer.Len() != 0 {
+			s.buffer.Truncate(s.buffer.Len() - 1)
+		}
 	case isTab(b):
 		s.keypress = Tab
 	case s.buffer.Len() < maxBufferSize:
@@ -89,7 +92,6 @@ func (s *Stdin) ReadNext() bool {
 		// drop it like it's hot
 	}
 
-  // XXX: Always returns true, but maybe this is fine
 	return true
 }
 
@@ -98,26 +100,50 @@ func (s *Stdin) KeyPress() int {
 	return s.keypress
 }
 
-// Text returns input string if it is ready (ie Enter has been pressed)
-func (s *Stdin) Text() (string, bool) {
-	isReady := s.ready
-	s.ready = false
-	return s.input, isReady
+// Peek at the contents of the input buffer without destroying them
+func (s *Stdin) Peek() string {
+	return s.buffer.String()
+}
+
+// Flush the current input buffer
+func (s *Stdin) Flush() string {
+	return s.flushBuffer()
+}
+
+// Override replaces the input buffer contents with the string passed in
+// Note: Not crazy about this (things should only flow up from this level, not down)
+// but best way to handle shell history currently
+func (s *Stdin) Override(input string) error {
+	s.buffer.Reset()
+	_, err := s.buffer.WriteString(input)
+	return err
 }
 
 // Restore normal operations. Must call this before the program exits.
-func (s *Stdin) Cleanup() {
+func (s *Stdin) Restore() {
 	exec.Command("stty", "-F", "/dev/tty", "echo").Run()
 }
 
-func (s *Stdin) flushBuffer() {
-	s.input = s.buffer.String()
-	s.ready = true
+func (s *Stdin) flushBuffer() string {
+	input := s.buffer.String()
 	s.buffer.Reset()
+	return input
 }
+
+func (s *Stdin) resetEscBuffer() {
+	s.escBuffer.Reset()
+	s.mark = false
+}
+
+// ASCII Matching
+// ----------------------------------------------------------------------------
 
 func isEnter(b []byte) bool {
 	return isEqual(b, []byte{10})
+}
+
+func isDel(b []byte) bool {
+	return isEqual(b, []byte{127})
 }
 
 func isTab(b []byte) bool {
@@ -129,11 +155,11 @@ func isEsc(b []byte) bool {
 }
 
 func isArrowUp(b []byte) bool {
-	return isEqual(b, []byte{27, 91, 65})
+	return isEqual(b, []byte{91, 65})
 }
 
 func isArrowDown(b []byte) bool {
-	return isEqual(b, []byte{27, 91, 66})
+	return isEqual(b, []byte{91, 66})
 }
 
 func isEqual(a, b []byte) bool {
