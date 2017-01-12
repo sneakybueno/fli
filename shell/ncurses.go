@@ -10,7 +10,8 @@ import (
 const (
 	// max size of stdin buffer
 	maxBufferSize = 1024
-	specialSeqSize = 3
+  // max size of any escape seq
+	escBufferSize = 5
 
 	// "enums" for keypresses
 	None = iota
@@ -24,14 +25,16 @@ const (
 type Stdin struct {
 	// buffer to hold input
 	buffer *bytes.Buffer
-	// number of bytes currently written to buffer
-	written int
+	// buffer to hold ESC characters
+	escBuffer *bytes.Buffer
 	// is input ready to be read
-	ready	 bool
+	ready bool
 	// input in friendly form
-	input  string
+	input string
 	// if special keypress happened, store type here
-	keypress    int
+	keypress int
+	// marks for special char input
+	mark bool
 }
 
 // InitStdin initializes our Stdin shim by hijacking input buffering
@@ -43,13 +46,12 @@ func InitStdin() *Stdin {
 	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()
 
 	return &Stdin{
-		buffer: bytes.NewBuffer(make([]byte, maxBufferSize)),
+		escBuffer: bytes.NewBuffer(make([]byte, escBufferSize)),
+		buffer:    bytes.NewBuffer(make([]byte, maxBufferSize)),
 	}
 }
 
 // ReadNext readies the next line of input or keypress
-// XXX: Always returns true, but maybe this is fine
-// TODO: Refactor this
 func (s *Stdin) ReadNext() bool {
 	s.keypress = None
 	s.ready = false
@@ -57,36 +59,37 @@ func (s *Stdin) ReadNext() bool {
 	b := make([]byte, 1)
 	os.Stdin.Read(b)
 
-	if isMulti(b) {
-		// this could be the start of something special
-		bspecial := []byte{}
-		bspecial = append(bspecial, b...)
-		// read twice more
-		for i := 0; i < specialSeqSize-1; i++ {
-			os.Stdin.Read(b)
-			bspecial = append(bspecial, b...)
-		}
-		if isArrowUp(bspecial) {
+	switch {
+	case s.mark:
+		s.escBuffer.Write(b)
+		if isArrowUp(s.escBuffer.Bytes()) {
 			s.keypress = ArrowUp
-		} else if isArrowDown(bspecial) {
+			s.mark = false
+		} else if isArrowDown(s.escBuffer.Bytes()) {
 			s.keypress = ArrowDown
+			s.mark = false
+		} else if s.escBuffer.Len() == escBufferSize {
+			// didn't match on any special chars
+			s.escBuffer.Reset()
+			s.mark = false
 		}
-	} else if isEnter(b) {
-		s.input = s.buffer.String()
-		s.ready = true
-		s.written = 0
-		s.buffer.Reset()
+	case isEsc(b):
+		// this could be the start of something special
+		s.escBuffer.Write(b)
+		s.mark = true
+	case isEnter(b):
+		s.flushBuffer()
 		fmt.Printf(string(b))
-	} else if isTab(b) {
+	case isTab(b):
 		s.keypress = Tab
-	} else if s.written < maxBufferSize {
+	case s.buffer.Len() < maxBufferSize:
 		s.buffer.Write(b)
-		s.written++
 		fmt.Print(string(b))
-	} else {
+	default:
 		// drop it like it's hot
 	}
 
+  // XXX: Always returns true, but maybe this is fine
 	return true
 }
 
@@ -107,6 +110,12 @@ func (s *Stdin) Cleanup() {
 	exec.Command("stty", "-F", "/dev/tty", "echo").Run()
 }
 
+func (s *Stdin) flushBuffer() {
+	s.input = s.buffer.String()
+	s.ready = true
+	s.buffer.Reset()
+}
+
 func isEnter(b []byte) bool {
 	return isEqual(b, []byte{10})
 }
@@ -115,17 +124,16 @@ func isTab(b []byte) bool {
 	return isEqual(b, []byte{9})
 }
 
-// XXX: need to do more research but figure out if byte 27 is special
-func isMulti(b []byte) bool {
+func isEsc(b []byte) bool {
 	return isEqual(b, []byte{27})
 }
 
 func isArrowUp(b []byte) bool {
-	return isEqual(b, []byte{27,91,65})
+	return isEqual(b, []byte{27, 91, 65})
 }
 
 func isArrowDown(b []byte) bool {
-	return isEqual(b, []byte{27,91,66})
+	return isEqual(b, []byte{27, 91, 66})
 }
 
 func isEqual(a, b []byte) bool {
