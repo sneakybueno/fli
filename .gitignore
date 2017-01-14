@@ -34,3 +34,6 @@ config/
 
 # Executable from 'go bulid' cmd, typically done for testing but annoying to delete
 cmd/fli/fli
+
+# MacOS
+.DS_Store

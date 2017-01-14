@@ -3,13 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"flag"
 
 	"github.com/sneakybueno/fli/fuego"
 	"github.com/sneakybueno/fli/shell"
 )
-
-var fStore *fuego.FStore
 
 func main() {
 	// start the shell
@@ -17,27 +17,39 @@ func main() {
 	// XXX: doesn't always exit cleanly :/
 	defer s.Cleanup()
 
-	firebaseURL := "https://go-fli.firebaseio.com/"
-	fStore = fuego.NewFStore(firebaseURL)
+	var firebaseURL string
+	var serviceAccountPath string
+
+	flag.StringVar(&firebaseURL, "host", "", "Firebase database URL (Required)")
+	flag.StringVar(&serviceAccountPath, "config", "", "Path to service account file (Required)")
+	flag.Parse()
+
+	if firebaseURL == "" || serviceAccountPath == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	fStore, err := fuego.NewFStore(firebaseURL, serviceAccountPath)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
 	fmt.Print(fStore.Prompt())
 
 	for s.Next() {
-		prettyPrint(processInput(s.Input()))
+		result, err := processInput(fStore, s.Input())
+		if err != nil {
+			fmt.Println(err)
+		} else if result != "" {
+			fmt.Println(result)
+		}
+		fmt.Print(fStore.Prompt())
 	}
 }
 
-func prettyPrint(result string, err error) {
-	if err != nil {
-		fmt.Println(err)
-	} else if result != "" {
-		fmt.Println(result)
-	}
-	fmt.Print(fStore.Prompt())
-}
-
-func processInput(input string) (string, error) {
+func processInput(fStore *fuego.FStore, input string) (string, error) {
 	if len(input) == 0 {
 		return "", nil
 	}
@@ -58,8 +70,7 @@ func processInput(input string) (string, error) {
 	case "ls":
 		return fStore.Ls()
 	case "pwd":
-		m := fmt.Sprintf("%s", fStore.WorkingDirectoryURL())
-		return m, nil
+		return fStore.WorkingDirectoryURL(), nil
 	default:
 		message := fmt.Sprintf("command not found: %s", command)
 		return "", fliError(message)
