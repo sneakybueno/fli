@@ -84,7 +84,6 @@ func (s *Shell) AddCommand(name string, handler CommandHandler) *Command {
 	}
 
 	s.commands = append(s.commands, command)
-	// need to sort here
 	sort.Sort(s.commands)
 
 	return &command
@@ -103,12 +102,7 @@ func (s *Shell) Process(input string) (string, error) {
 		return "", err
 	}
 
-	out, err := command.Handler(components)
-	if err != nil {
-		return "", err
-	}
-
-	return out, nil
+	return command.Handler(components)
 }
 
 // Binary search for command based on name
