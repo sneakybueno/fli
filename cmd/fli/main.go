@@ -11,16 +11,11 @@ import (
 	"github.com/sneakybueno/fli/shell"
 )
 
+type Fli struct {
+	fStore *fuego.FStore
+}
+
 func main() {
-	s, err := shell.Init()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	// XXX: doesn't always exit cleanly :/
-	defer s.Cleanup()
-
 	var firebaseURL string
 	var serviceAccountPath string
 
@@ -40,9 +35,21 @@ func main() {
 	}
 
 	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
+
+	s, err := shell.Init()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	// Shell should probably be responsible for printing prompt
 	fmt.Print(fStore.Prompt())
 
-	s.AddCommand("hello", helloHandler)
+	fli := &Fli{fStore: fStore}
+
+	// Register command handlers
+	s.AddCommand("hello", fli.helloHandler)
+	s.AddCommand("pwd", fli.pwdHandler)
 
 	for s.Next() {
 		result, err := s.Process(s.Input())
@@ -51,6 +58,7 @@ func main() {
 		} else if result != "" {
 			fmt.Println(result)
 		}
+		// Shell should probably be responsible for printing prompt
 		fmt.Print(fStore.Prompt())
 	}
 
@@ -59,8 +67,12 @@ func main() {
 	}
 }
 
-func helloHandler(args []string) (string, error) {
-	return "Hello World -Eric", nil
+func (fli *Fli) helloHandler(args []string) (string, error) {
+	return "Hello World -Fli", nil
+}
+
+func (fli *Fli) pwdHandler(args []string) (string, error) {
+	return fli.fStore.WorkingDirectoryURL(), nil
 }
 
 func processInput(fStore *fuego.FStore, input string) (string, error) {
