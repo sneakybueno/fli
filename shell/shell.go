@@ -103,7 +103,7 @@ func (s *Shell) Process(input string) (string, error) {
 		return "", err
 	}
 
-	out, err := command.Handler([]string{})
+	out, err := command.Handler(components)
 	if err != nil {
 		return "", err
 	}
@@ -170,6 +170,7 @@ func (s *Shell) Next() bool {
 
 		case isArrowLeft(c):
 		case isArrowRight(c):
+		case isTab(c):
 		case isCtrlC(c):
 			fmt.Print("Closing app")
 			s.Cleanup()
