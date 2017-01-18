@@ -42,8 +42,10 @@ func main() {
 	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
 	fmt.Print(fStore.Prompt())
 
+	s.AddCommand("hello", helloHandler)
+
 	for s.Next() {
-		result, err := processInput(fStore, s.Input())
+		result, err := s.Process(s.Input())
 		if err != nil {
 			fmt.Println(err)
 		} else if result != "" {
@@ -55,6 +57,10 @@ func main() {
 	if err = s.Error(); err != nil {
 		fmt.Println(err)
 	}
+}
+
+func helloHandler(args []string) (string, error) {
+	return "Hello World -Eric", nil
 }
 
 func processInput(fStore *fuego.FStore, input string) (string, error) {

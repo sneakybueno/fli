@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/pkg/term"
 )
@@ -20,10 +21,18 @@ type Shell struct {
 	// buffer to hold input
 	buffer *bytes.Buffer
 
-	history *CmdHistory
+	commands []Command
+	history  *CmdHistory
 
 	input string
 	err   error
+}
+
+type CommandHandler func(args []string) (string, error)
+
+type Command struct {
+	Name    string
+	Handler CommandHandler
 }
 
 // Init creates a shell-like env
@@ -50,6 +59,60 @@ func (s *Shell) Input() string {
 
 func (s *Shell) Error() error {
 	return s.err
+}
+
+func (s *Shell) AddCommand(name string, handler CommandHandler) {
+	command := Command{
+		Name:    name,
+		Handler: handler,
+	}
+
+	s.commands = append(s.commands, command)
+	// need to sort here
+}
+
+func (s *Shell) Process(input string) (string, error) {
+	if len(input) == 0 {
+		return "", nil
+	}
+
+	components := strings.Split(input, " ")
+	commandString := components[0]
+
+	command, err := s.findCommand(commandString)
+	if err != nil {
+		return "", err
+	}
+
+	out, err := command.Handler([]string{})
+	if err != nil {
+		return "", err
+	}
+
+	return out, nil
+}
+
+// Binary search for command based on name
+func (s *Shell) findCommand(commandName string) (*Command, error) {
+	l := 0
+	r := len(s.commands)
+
+	for l < r {
+		mid := (l - r) / 2
+		c := s.commands[mid]
+
+		if c.Name == commandName {
+			return &c, nil
+		}
+
+		if c.Name < commandName {
+			r = mid - 1
+		} else {
+			l = mid + 1
+		}
+	}
+
+	return nil, fmt.Errorf("gshell: command not found: %s", commandName)
 }
 
 // Next returns true if the enter key has been pressed
