@@ -1,72 +1,142 @@
 package shell
 
 import (
+	"bytes"
 	"fmt"
-	"strings"
+	"os"
+
+	"github.com/pkg/term"
+)
+
+var (
+	backspaceBytes = []byte("\b \b")
+	newLineBytes   = []byte("\n")
 )
 
 // Shell struct for keeping track of shell things
 type Shell struct {
-	stdin   *Stdin
+	term *term.Term
+
+	// buffer to hold input
+	buffer *bytes.Buffer
+
 	history *CmdHistory
-	input   string
+
+	input string
+	err   error
 }
 
 // Init creates a shell-like env
-func Init() *Shell {
+func Init() (*Shell, error) {
+	t, err := term.Open("/dev/tty")
+	if err != nil {
+		return nil, err
+	}
+
 	return &Shell{
-		stdin:   InitStdin(),
+		term:    t,
+		buffer:  bytes.NewBuffer([]byte{}),
 		history: InitCmdHistory(50),
-	}
+	}, nil
 }
 
-// Next returns true if there is more input
-func (s *Shell) Next() bool {
-	for s.stdin.ReadNext() {
-		switch s.stdin.KeyPress() {
-		case Enter:
-			s.input = s.stdin.Flush()
-			if nonEmpty(s.input) {
-				s.history.Add(s.input)
-			}
-			return true
-		case ArrowUp:
-			s.stdin.Override(s.history.Prev())
-			fakeRedraw(s.stdin.Peek())
-		case ArrowDown:
-			s.stdin.Override(s.history.Next())
-			fakeRedraw(s.stdin.Peek())
-		case Delete:
-			fakeRedraw(s.stdin.Peek())
-		case Tab:
-			fmt.Printf("[tab]")
-		}
-	}
-
-	return false
-}
+// Getters
+// ----------------------------------------------------------------------------
 
 // Input returns any available input
 func (s *Shell) Input() string {
 	return s.input
 }
 
+func (s *Shell) Error() error {
+	return s.err
+}
+
+// Next returns true if the enter key has been pressed
+func (s *Shell) Next() bool {
+	for {
+		c, err := s.getchar()
+		if err != nil {
+			s.err = err
+			return false
+		}
+
+		switch {
+		case isEnter(c):
+			s.input = s.flushBuffer()
+			if nonEmpty(s.input) {
+				s.history.Add(s.input)
+			}
+
+			s.term.Write(newLineBytes)
+
+			return true
+		case isDelete(c):
+			if s.buffer.Len() > 0 {
+				s.buffer.Truncate(s.buffer.Len() - 1)
+				s.term.Write(backspaceBytes)
+			}
+		case isArrowUp(c):
+			// Need to stop when we reach position 0
+			previousInput := s.history.Prev()
+			s.overwriteBufferOnScreen(previousInput)
+		case isArrowDown(c):
+			// Need to stop when we reach position last position
+			nextInput := s.history.Next()
+			s.overwriteBufferOnScreen(nextInput)
+
+		case isArrowLeft(c):
+		case isArrowRight(c):
+		case isCtrlC(c):
+			fmt.Print("Closing app")
+			s.Cleanup()
+			os.Exit(0)
+		default:
+			s.buffer.Write(c)
+			s.term.Write(c)
+		}
+	}
+}
+
+func (s *Shell) getchar() ([]byte, error) {
+	s.term.SetRaw()
+
+	// not sure if this should be hardcoded as 3 chars
+	bytes := make([]byte, 3)
+	numRead, err := s.term.Read(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	s.term.Restore()
+
+	return bytes[0:numRead], nil
+}
+
+func (s *Shell) flushBuffer() string {
+	input := s.buffer.String()
+	s.buffer.Reset()
+
+	return input
+}
+
+func (s *Shell) overwriteBufferOnScreen(buffer string) {
+	bufferBytes := []byte(buffer)
+
+	// delete everything in current buffer
+	length := s.buffer.Len()
+	for i := 0; i < length; i++ {
+		s.term.Write(backspaceBytes)
+	}
+
+	s.flushBuffer()
+
+	s.buffer.Write(bufferBytes)
+	s.term.Write(bufferBytes)
+}
+
 // Cleanup does any work needed to cleanly close the shell
 func (s *Shell) Cleanup() {
-	s.stdin.Restore()
-}
-
-// because how the fuck do you do this?
-func fakeRedraw(input string) {
-	if nonEmpty(input) {
-		fmt.Printf(" -> %s", input)
-	}
-}
-
-func nonEmpty(input string) bool {
-	// TODO: figure out how to properly check for strings that are just whitespace
-	if strings.TrimSpace(input) == "" {
-		return false
-	}
-	return true
+	s.term.Restore()
+	s.term.Close()
 }

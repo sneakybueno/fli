@@ -2,18 +2,22 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
-	"flag"
 
 	"github.com/sneakybueno/fli/fuego"
 	"github.com/sneakybueno/fli/shell"
 )
 
 func main() {
-	// start the shell
-	s := shell.Init()
+	s, err := shell.Init()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	// XXX: doesn't always exit cleanly :/
 	defer s.Cleanup()
 
@@ -46,6 +50,10 @@ func main() {
 			fmt.Println(result)
 		}
 		fmt.Print(fStore.Prompt())
+	}
+
+	if err = s.Error(); err != nil {
+		fmt.Println(err)
 	}
 }
 
