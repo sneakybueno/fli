@@ -34,14 +34,11 @@ func main() {
 
 	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
 
-	s, err := shell.Init()
+	s, err := shell.Init(fStore.Prompt())
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
-	// Shell should probably be responsible for printing prompt
-	fmt.Print(fStore.Prompt())
 
 	fli := &Fli{fStore: fStore}
 
@@ -52,14 +49,7 @@ func main() {
 	s.AddCommand("cd", fli.cdHandler)
 
 	for s.Next() {
-		result, err := s.Process(s.Input())
-		if err != nil {
-			fmt.Println(err)
-		} else if result != "" {
-			fmt.Println(result)
-		}
-		// Shell should probably be responsible for printing prompt
-		fmt.Print(fStore.Prompt())
+		s.Process(s.Input())
 	}
 
 	if err = s.Error(); err != nil {
@@ -67,19 +57,19 @@ func main() {
 	}
 }
 
-func (fli *Fli) helloHandler(args []string) (string, error) {
+func (fli *Fli) helloHandler(args []string, s *shell.Shell) (string, error) {
 	return "Hello World -Fli", nil
 }
 
-func (fli *Fli) lsHandler(args []string) (string, error) {
+func (fli *Fli) lsHandler(args []string, s *shell.Shell) (string, error) {
 	return fli.fStore.Ls()
 }
 
-func (fli *Fli) pwdHandler(args []string) (string, error) {
+func (fli *Fli) pwdHandler(args []string, s *shell.Shell) (string, error) {
 	return fli.fStore.WorkingDirectoryURL(), nil
 }
 
-func (fli *Fli) cdHandler(args []string) (string, error) {
+func (fli *Fli) cdHandler(args []string, s *shell.Shell) (string, error) {
 	var dir string
 
 	if len(args) <= 1 {
@@ -89,5 +79,7 @@ func (fli *Fli) cdHandler(args []string) (string, error) {
 	}
 
 	fli.fStore.Cd(dir)
+	s.SetPrompt(fli.fStore.Prompt())
+
 	return "", nil
 }

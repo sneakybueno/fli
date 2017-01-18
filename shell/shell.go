@@ -26,11 +26,12 @@ type Shell struct {
 	commands Commands
 	history  *CmdHistory
 
-	input string
-	err   error
+	prompt string
+	input  string
+	err    error
 }
 
-type CommandHandler func(args []string) (string, error)
+type CommandHandler func(args []string, s *Shell) (string, error)
 
 type Command struct {
 	Name    string
@@ -52,17 +53,22 @@ func (commands Commands) Swap(i, j int) {
 }
 
 // Init creates a shell-like env
-func Init() (*Shell, error) {
+func Init(prompt string) (*Shell, error) {
 	t, err := term.Open("/dev/tty")
 	if err != nil {
 		return nil, err
 	}
 
-	return &Shell{
+	s := &Shell{
 		term:    t,
 		buffer:  bytes.NewBuffer([]byte{}),
 		history: InitCmdHistory(50),
-	}, nil
+	}
+
+	s.prompt = prompt
+	fmt.Print(s.prompt)
+
+	return s, nil
 }
 
 // Getters
@@ -75,6 +81,14 @@ func (s *Shell) Input() string {
 
 func (s *Shell) Error() error {
 	return s.err
+}
+
+func (s *Shell) Prompt() string {
+	return s.prompt
+}
+
+func (s *Shell) SetPrompt(prompt string) {
+	s.prompt = prompt
 }
 
 func (s *Shell) AddCommand(name string, handler CommandHandler) *Command {
@@ -99,10 +113,22 @@ func (s *Shell) Process(input string) (string, error) {
 
 	command, err := s.FindCommand(commandString)
 	if err != nil {
+		fmt.Println(err)
+		fmt.Print(s.prompt)
+
 		return "", err
 	}
 
-	return command.Handler(components)
+	out, err := command.Handler(components, s)
+	if err != nil {
+		fmt.Println(err)
+	} else if out != "" {
+		fmt.Println(out)
+	}
+
+	fmt.Print(s.prompt)
+
+	return out, err
 }
 
 // Binary search for command based on name
@@ -161,7 +187,6 @@ func (s *Shell) Next() bool {
 			// Need to stop when we reach position last position
 			nextInput := s.history.Next()
 			s.overwriteBufferOnScreen(nextInput)
-
 		case isArrowLeft(c):
 		case isArrowRight(c):
 		case isTab(c):
