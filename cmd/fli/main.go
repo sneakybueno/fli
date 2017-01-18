@@ -1,11 +1,9 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/sneakybueno/fli/fuego"
 	"github.com/sneakybueno/fli/shell"
@@ -49,7 +47,9 @@ func main() {
 
 	// Register command handlers
 	s.AddCommand("hello", fli.helloHandler)
+	s.AddCommand("ls", fli.lsHandler)
 	s.AddCommand("pwd", fli.pwdHandler)
+	s.AddCommand("cd", fli.cdHandler)
 
 	for s.Next() {
 		result, err := s.Process(s.Input())
@@ -71,39 +71,23 @@ func (fli *Fli) helloHandler(args []string) (string, error) {
 	return "Hello World -Fli", nil
 }
 
+func (fli *Fli) lsHandler(args []string) (string, error) {
+	return fli.fStore.Ls()
+}
+
 func (fli *Fli) pwdHandler(args []string) (string, error) {
 	return fli.fStore.WorkingDirectoryURL(), nil
 }
 
-func processInput(fStore *fuego.FStore, input string) (string, error) {
-	if len(input) == 0 {
-		return "", nil
+func (fli *Fli) cdHandler(args []string) (string, error) {
+	var dir string
+
+	if len(args) <= 1 {
+		dir = ""
+	} else {
+		dir = args[1]
 	}
 
-	components := strings.Split(input, " ")
-	command := components[0]
-
-	switch command {
-	case "cd":
-		var dir string
-		if len(components) <= 1 {
-			dir = ""
-		} else {
-			dir = components[1]
-		}
-		fStore.Cd(dir)
-		return "", nil
-	case "ls":
-		return fStore.Ls()
-	case "pwd":
-		return fStore.WorkingDirectoryURL(), nil
-	default:
-		message := fmt.Sprintf("command not found: %s", command)
-		return "", fliError(message)
-	}
-}
-
-func fliError(message string) error {
-	m := fmt.Sprintf("fli: %s", message)
-	return errors.New(m)
+	fli.fStore.Cd(dir)
+	return "", nil
 }
