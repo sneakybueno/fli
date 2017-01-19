@@ -8,7 +8,7 @@ dependencies:
     - sudo apt-get update -y; true
     - sudo apt-get install glide -y
   override:
-    - mkdir -p "$HOME/.go_workspace/src/github.com/sneakybueno"
+    - mkdir -p "$HOME/.go_workspace/src/github.com/sneakybueno/fli"
     - mv $HOME/fli/* $HOME/.go_workspace/src/github.com/sneakybueno/fli;
     - cd $HOME/.go_workspace/src/github.com/sneakybueno/fli
     - glide install
