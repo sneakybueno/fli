@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
+	fmt.Printf("Time to fli @ %s\n", fStore.FirebaseURL)
 
 	s, err := shell.Init(fStore.Prompt())
 	if err != nil {
@@ -66,7 +66,7 @@ func (fli *Fli) lsHandler(args []string, s *shell.Shell) (string, error) {
 }
 
 func (fli *Fli) pwdHandler(args []string, s *shell.Shell) (string, error) {
-	return fli.fStore.WorkingDirectoryURL(), nil
+	return fli.fStore.FirebaseURLFromWorkingDirectory("."), nil
 }
 
 func (fli *Fli) cdHandler(args []string, s *shell.Shell) (string, error) {
