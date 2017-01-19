@@ -68,6 +68,8 @@ func Init(prompt string) (*Shell, error) {
 	s.prompt = prompt
 	fmt.Print(s.prompt)
 
+	s.AddCommand("exit", exitHandler)
+
 	return s, nil
 }
 
@@ -276,6 +278,12 @@ func (s *Shell) overwriteLastWordOnScreen(word string) {
 
 	s.buffer.Write([]byte(word))
 	s.term.Write([]byte(word))
+}
+
+func exitHandler(args []string, s *Shell) (string, error) {
+	s.Cleanup()
+	os.Exit(0)
+	return "", nil
 }
 
 // Cleanup does any work needed to cleanly close the shell
