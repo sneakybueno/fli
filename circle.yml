@@ -9,10 +9,11 @@ dependencies:
     - sudo apt-get install glide -y
   override:
     - mkdir -p "$HOME/.go_workspace/src/github.com/sneakybueno"
-    - cd $HOME/.go_workspace/src/github.com/sneakybueno
-    - mv $HOME/fli ./ ;
+    - mv $HOME/fli $HOME/.go_workspace/src/github.com/sneakybueno;
+    - cd $HOME/.go_workspace/src/github.com/sneakybueno/fli
     - glide install
 
 test:
   override:
+    - cd $HOME/.go_workspace/src/github.com/sneakybueno/fli
     - go test $(glide novendor)
