@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/skratchdot/open-golang/open"
 	"github.com/sneakybueno/fli/fuego"
 	"github.com/sneakybueno/fli/shell"
 )
@@ -44,9 +45,11 @@ func main() {
 
 	// Register command handlers
 	s.AddCommand("hello", fli.helloHandler)
-	s.AddCommand("ls", fli.lsHandler)
-	s.AddCommand("pwd", fli.pwdHandler)
+
 	s.AddCommand("cd", fli.cdHandler)
+	s.AddCommand("ls", fli.lsHandler)
+	s.AddCommand("open", fli.openHandler)
+	s.AddCommand("pwd", fli.pwdHandler)
 
 	for s.Next() {
 		s.Process(s.Input())
@@ -59,22 +62,6 @@ func main() {
 
 func (fli *Fli) helloHandler(args []string, s *shell.Shell) (string, error) {
 	return "Hello World -Fli", nil
-}
-
-func (fli *Fli) lsHandler(args []string, s *shell.Shell) (string, error) {
-	var p string
-
-	if len(args) <= 1 {
-		p = ""
-	} else {
-		p = args[1]
-	}
-
-	return fli.fStore.Ls(p)
-}
-
-func (fli *Fli) pwdHandler(args []string, s *shell.Shell) (string, error) {
-	return fli.fStore.FirebaseURLFromWorkingDirectory("."), nil
 }
 
 func (fli *Fli) cdHandler(args []string, s *shell.Shell) (string, error) {
@@ -90,4 +77,36 @@ func (fli *Fli) cdHandler(args []string, s *shell.Shell) (string, error) {
 	s.SetPrompt(fli.fStore.Prompt())
 
 	return "", nil
+}
+
+func (fli *Fli) lsHandler(args []string, s *shell.Shell) (string, error) {
+	var p string
+
+	if len(args) <= 1 {
+		p = ""
+	} else {
+		p = args[1]
+	}
+
+	return fli.fStore.Ls(p)
+}
+
+func (fli *Fli) openHandler(args []string, s *shell.Shell) (string, error) {
+	var p string
+
+	if len(args) <= 1 {
+		p = ""
+	} else {
+		p = args[1]
+	}
+
+	url := fli.fStore.FirebaseURLFromWorkingDirectory(p)
+	open.Start(url)
+
+	message := fmt.Sprintf("opening (%s) in default browser", url)
+	return message, nil
+}
+
+func (fli *Fli) pwdHandler(args []string, s *shell.Shell) (string, error) {
+	return fli.fStore.FirebaseURLFromWorkingDirectory("."), nil
 }
