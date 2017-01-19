@@ -1,0 +1,8 @@
+dependencies:
+  pre:
+    - sudo add-apt-repository ppa:masterminds/glide && sudo apt-get update
+    - sudo apt-get install glide
+
+test:
+  override:
+    - go test $(glide novendor)
