@@ -109,8 +109,8 @@ func (fs *FStore) Cd(dir string) {
 }
 
 // Ls does a thing
-func (fs *FStore) Ls() (string, error) {
-	path := fs.Wd()
+func (fs *FStore) Ls(p string) (string, error) {
+	path := fs.BuildWorkingDirectoryPath(p)
 	data, err := fs.fClient.ShallowGet(path)
 	if err != nil {
 		return "", err

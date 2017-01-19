@@ -62,7 +62,15 @@ func (fli *Fli) helloHandler(args []string, s *shell.Shell) (string, error) {
 }
 
 func (fli *Fli) lsHandler(args []string, s *shell.Shell) (string, error) {
-	return fli.fStore.Ls()
+	var p string
+
+	if len(args) <= 1 {
+		p = ""
+	} else {
+		p = args[1]
+	}
+
+	return fli.fStore.Ls(p)
 }
 
 func (fli *Fli) pwdHandler(args []string, s *shell.Shell) (string, error) {

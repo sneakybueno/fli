@@ -9,8 +9,6 @@ func FindNextTerm(values []string, term string) (string, error) {
 	if low < high {
 		mid := (high - low) / 2
 
-		// check length before checking if it is a match and find new mid
-
 		comparison := firstNCharactersMatch(len(term), term, values[mid])
 
 		if comparison < 0 {
