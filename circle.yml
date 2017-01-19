@@ -1,7 +1,7 @@
 dependencies:
   pre:
-    - sudo apt-get update -y; true
     - sudo add-apt-repository ppa:masterminds/glide -y
+    - sudo apt-get update -y; true
     - sudo apt-get install glide -y
 
 test:
