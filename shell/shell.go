@@ -190,13 +190,13 @@ func (s *Shell) Next() bool {
 		case isArrowLeft(c):
 		case isArrowRight(c):
 		case isTab(c):
-			searchTerm := s.getLastWordFromBuffer()
+			// searchTerm := s.getLastWordFromBuffer()
 
-			fakeDatasource := []string{"hello", "users"}
-			tabCompletion, err := FindNextTerm(fakeDatasource, searchTerm)
-			if err == nil {
-				s.overwriteLastWordOnScreen(tabCompletion)
-			}
+			// fakeDatasource := []string{"hello", "users"}
+			// tabCompletion, err := FindNextTerm(fakeDatasource, searchTerm)
+			// if err == nil {
+			// 	s.overwriteLastWordOnScreen(tabCompletion)
+			// }
 		case isCtrlC(c):
 			fmt.Print("Closing app")
 			s.Cleanup()
