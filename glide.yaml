@@ -1,0 +1,14 @@
+package: github.com/sneakybueno/fli
+import:
+- package: github.com/pkg/term
+- package: github.com/skratchdot/open-golang
+  subpackages:
+  - open
+- package: golang.org/x/oauth2
+  subpackages:
+  - google
+testImport:
+- package: github.com/stretchr/testify
+  version: ^1.1.4
+  subpackages:
+  - assert
