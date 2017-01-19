@@ -190,6 +190,13 @@ func (s *Shell) Next() bool {
 		case isArrowLeft(c):
 		case isArrowRight(c):
 		case isTab(c):
+			searchTerm := s.getLastWordFromBuffer()
+
+			fakeDatasource := []string{"hello", "users"}
+			tabCompletion, err := FindNextTerm(fakeDatasource, searchTerm)
+			if err == nil {
+				s.overwriteLastWordOnScreen(tabCompletion)
+			}
 		case isCtrlC(c):
 			fmt.Print("Closing app")
 			s.Cleanup()
@@ -199,6 +206,16 @@ func (s *Shell) Next() bool {
 			s.term.Write(c)
 		}
 	}
+}
+
+func (s *Shell) getLastWordFromBuffer() string {
+	bufferString := s.buffer.String()
+	if bufferString == "" {
+		return ""
+	}
+
+	components := strings.Split(bufferString, " ")
+	return components[len(components)-1]
 }
 
 func (s *Shell) getchar() ([]byte, error) {
@@ -226,7 +243,7 @@ func (s *Shell) flushBuffer() string {
 func (s *Shell) overwriteBufferOnScreen(buffer string) {
 	bufferBytes := []byte(buffer)
 
-	// delete everything in current buffer
+	// delete everything in current buffers
 	length := s.buffer.Len()
 	for i := 0; i < length; i++ {
 		s.term.Write(backspaceBytes)
@@ -236,6 +253,29 @@ func (s *Shell) overwriteBufferOnScreen(buffer string) {
 
 	s.buffer.Write(bufferBytes)
 	s.term.Write(bufferBytes)
+}
+
+func (s *Shell) overwriteLastWordOnScreen(word string) {
+	bufferString := s.buffer.String()
+	if bufferString == "" {
+		s.buffer.Write([]byte(word))
+		s.term.Write([]byte(word))
+		return
+	}
+
+	components := strings.Split(bufferString, " ")
+	lastWord := components[len(components)-1]
+
+	// delete last word from buffers
+	for i := 0; i < len(lastWord); i++ {
+		s.term.Write(backspaceBytes)
+	}
+
+	length := len(bufferString) - len(lastWord)
+	s.buffer.Truncate(length)
+
+	s.buffer.Write([]byte(word))
+	s.term.Write([]byte(word))
 }
 
 // Cleanup does any work needed to cleanly close the shell
