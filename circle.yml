@@ -1,8 +1,14 @@
+machine:
+  environment:
+    IMPORT_PATH: "github.com/sneakybueno/fli"
+
 dependencies:
   pre:
     - sudo add-apt-repository ppa:masterminds/glide -y
     - sudo apt-get update -y; true
     - sudo apt-get install glide -y
+  override:
+    - mkdir -p "$GOPATH/src/$IMPORT_PATH"
     - glide install
 
 test:
