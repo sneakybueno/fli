@@ -7,9 +7,11 @@ dependencies:
     - sudo add-apt-repository ppa:masterminds/glide -y
     - sudo apt-get update -y; true
     - sudo apt-get install glide -y
-  post:
+  override:
+    - mkdir -p "$HOME/.go_workspace/src/github.com/sneakybueno"
+    - cd $HOME/.go_workspace/src/github.com/sneakybueno
+    - mv $HOME/fli ./ ;
     - glide install
-
 
 test:
   override:
