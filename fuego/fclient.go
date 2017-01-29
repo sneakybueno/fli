@@ -54,7 +54,7 @@ func NewFClient(firebaseURL string, serviceAccountPath string) (*FClient, error)
 // ----------------------------------------------------------------------------
 
 // Get performs a http get request for the given path
-func (fc *FClient) Get(path string) (interface{}, error) {
+func (fc *FClient) Get(path string, params map[string]string) (interface{}, error) {
 	p, err := fc.buildURL(path)
 	if err != nil {
 		return nil, err
@@ -63,6 +63,16 @@ func (fc *FClient) Get(path string) (interface{}, error) {
 	request, err := http.NewRequest("GET", p, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(params) > 0 {
+		q := request.URL.Query()
+
+		for key, value := range params {
+			q.Add(key, value)
+		}
+
+		request.URL.RawQuery = q.Encode()
 	}
 
 	return fc.do(request)
@@ -70,21 +80,8 @@ func (fc *FClient) Get(path string) (interface{}, error) {
 
 // ShallowGet performs a http shallow get request for the given path
 func (fc *FClient) ShallowGet(path string) (interface{}, error) {
-	p, err := fc.buildURL(path)
-	if err != nil {
-		return nil, err
-	}
-
-	request, err := http.NewRequest("GET", p, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	q := request.URL.Query()
-	q.Add("shallow", "true")
-	request.URL.RawQuery = q.Encode()
-
-	return fc.do(request)
+	params := map[string]string{"shallow": "true"}
+	return fc.Get(path, params)
 }
 
 // Networking
@@ -92,6 +89,7 @@ func (fc *FClient) ShallowGet(path string) (interface{}, error) {
 
 func (fc *FClient) buildURL(p string) (string, error) {
 	if p != "" {
+		// need to escape p properly here
 		u := fc.FirebaseURL + p
 		return u + ".json", nil
 	}
