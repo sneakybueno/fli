@@ -1,6 +1,7 @@
 package fuego
 
 import (
+	"encoding/json"
 	"fmt"
 	"path"
 	"strconv"
@@ -119,9 +120,122 @@ func (fs *FStore) Ls(p string) (string, error) {
 	return firebaseDataToString(data)
 }
 
+// Search looks for any firebase objects that match for key and value
+// Add wildcard support when key == *
+func (fs *FStore) Search(objectPath string, key string, value interface{}) (string, error) {
+	//validate path, key, value
+	data, err := fs.fClient.Get(objectPath, nil)
+	if err != nil {
+		return "", err
+	}
+
+	// handle other cases as well
+	switch v := data.(type) {
+	case []interface{}:
+		var matches []string
+
+		for idx, elem := range v {
+			switch x := elem.(type) {
+			case map[string]interface{}:
+				if valueMatchesForKey(x, key, value) {
+					msg := fmt.Sprintf("%d: %v", idx, x)
+					matches = append(matches, msg)
+				}
+			default:
+				continue
+			}
+		}
+
+		return strings.Join(matches, "\n"), nil
+	case map[string]interface{}:
+		var matches []string
+
+		for idx, elem := range v {
+			switch x := elem.(type) {
+			case map[string]interface{}:
+				if valueMatchesForKey(x, key, value) {
+					msg := fmt.Sprintf("%s: %v", idx, x)
+					matches = append(matches, msg)
+				}
+			default:
+				continue
+			}
+		}
+		return strings.Join(matches, "\n"), nil
+	default:
+		return "", fmt.Errorf("Error: Unsupported type: %T", data)
+	}
+}
+
+func valueMatchesForKey(m map[string]interface{}, key string, value interface{}) bool {
+	if key == "*" {
+		for _, val := range m {
+			if val == value {
+				return true
+			}
+		}
+	} else {
+		if val, ok := m[key]; ok {
+			if val == value {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// IndexedSearch looks for any firebase objects that match for key and value
+// Need to have values indexed in firebase rules
+func (fs *FStore) IndexedSearch(objectPath string, key string, value interface{}) (string, error) {
+	//validate path, key, value
+	encodedKey, err := json.Marshal(key)
+	if err != nil {
+		return "", err
+	}
+
+	encodedValue, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+
+	params := map[string]string{
+		"orderBy": string(encodedKey),
+		"equalTo": string(encodedValue),
+	}
+
+	data, err := fs.fClient.Get(objectPath, params)
+	if err != nil {
+		return "", err
+	}
+
+	return dataToString(data)
+}
+
 // Private utilities
 // ----------------------------------------------------------------------------
 
+func dataToString(data interface{}) (string, error) {
+	switch v := data.(type) {
+	case int:
+		return strconv.Itoa(v), nil
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case string:
+		return v, nil
+	case map[string]interface{}:
+		keys := make([]string, 0, len(v))
+		for key, value := range v {
+			msg := fmt.Sprintf("%s: %v", key, value)
+			keys = append(keys, msg)
+		}
+		return strings.Join(keys, "\n"), nil
+	default:
+		return "", fmt.Errorf("Error: Unsupported type %+v ", data)
+	}
+}
+
+// only for ls functions
 func firebaseDataToString(data interface{}) (string, error) {
 	switch v := data.(type) {
 	case int:
