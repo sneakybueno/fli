@@ -136,8 +136,9 @@ func (s *Shell) getLastWordFromBuffer() string {
 func (s *Shell) getchar() ([]byte, error) {
 	s.term.SetRaw()
 
-	// not sure if this should be hardcoded as 3 chars
-	bytes := make([]byte, 3)
+	// not sure if this should be hardcoded as 256 chars
+	// This limits pasting into the buffer to 256 chars
+	bytes := make([]byte, 256)
 	numRead, err := s.term.Read(bytes)
 	if err != nil {
 		return nil, err
