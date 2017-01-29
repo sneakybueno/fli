@@ -1,16 +1,18 @@
 package main
 
 import (
-	"bufio"
-	"errors"
+	"flag"
 	"fmt"
 	"os"
-	"strings"
 
-	"flag"
-
+	"github.com/skratchdot/open-golang/open"
 	"github.com/sneakybueno/fli/fuego"
+	"github.com/sneakybueno/fli/shell"
 )
+
+type Fli struct {
+	fStore *fuego.FStore
+}
 
 func main() {
 	var firebaseURL string
@@ -31,53 +33,80 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Time to fli @ %s\n", fStore.WorkingDirectoryURL())
-	fmt.Print(fStore.Prompt())
+	fmt.Printf("Time to fli @ %s\n", fStore.FirebaseURL)
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		input := scanner.Text()
+	s, err := shell.Init(fStore.Prompt())
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
-		m, err := processInput(fStore, input)
-		if err != nil {
-			fmt.Println(err)
-		} else if m != "" {
-			fmt.Println(m)
-		}
+	fli := &Fli{fStore: fStore}
 
-		fmt.Print(fStore.Prompt())
+	// Register command handlers
+	s.AddCommand("hello", fli.helloHandler)
+
+	s.AddCommand("cd", fli.cdHandler)
+	s.AddCommand("ls", fli.lsHandler)
+	s.AddCommand("open", fli.openHandler)
+	s.AddCommand("pwd", fli.pwdHandler)
+
+	for s.Next() {
+		s.Process(s.Input())
+	}
+
+	if err = s.Error(); err != nil {
+		fmt.Println(err)
 	}
 }
 
-func processInput(fStore *fuego.FStore, input string) (string, error) {
-	if len(input) == 0 {
-		return "", nil
-	}
-
-	components := strings.Split(input, " ")
-	command := components[0]
-
-	switch command {
-	case "cd":
-		var dir string
-		if len(components) <= 1 {
-			dir = ""
-		} else {
-			dir = components[1]
-		}
-		fStore.Cd(dir)
-		return "", nil
-	case "ls":
-		return fStore.Ls()
-	case "pwd":
-		return fStore.WorkingDirectoryURL(), nil
-	default:
-		message := fmt.Sprintf("command not found: %s", command)
-		return "", fliError(message)
-	}
+func (fli *Fli) helloHandler(args []string, s *shell.Shell) (string, error) {
+	return "Hello World -Fli", nil
 }
 
-func fliError(message string) error {
-	m := fmt.Sprintf("fli: %s", message)
-	return errors.New(m)
+func (fli *Fli) cdHandler(args []string, s *shell.Shell) (string, error) {
+	var dir string
+
+	if len(args) <= 1 {
+		dir = ""
+	} else {
+		dir = args[1]
+	}
+
+	fli.fStore.Cd(dir)
+	s.SetPrompt(fli.fStore.Prompt())
+
+	return "", nil
+}
+
+func (fli *Fli) lsHandler(args []string, s *shell.Shell) (string, error) {
+	var p string
+
+	if len(args) <= 1 {
+		p = ""
+	} else {
+		p = args[1]
+	}
+
+	return fli.fStore.Ls(p)
+}
+
+func (fli *Fli) openHandler(args []string, s *shell.Shell) (string, error) {
+	var p string
+
+	if len(args) <= 1 {
+		p = ""
+	} else {
+		p = args[1]
+	}
+
+	url := fli.fStore.FirebaseURLFromWorkingDirectory(p)
+	open.Start(url)
+
+	message := fmt.Sprintf("opening (%s) in default browser", url)
+	return message, nil
+}
+
+func (fli *Fli) pwdHandler(args []string, s *shell.Shell) (string, error) {
+	return fli.fStore.FirebaseURLFromWorkingDirectory("."), nil
 }
