@@ -47,7 +47,9 @@ func main() {
 	s.AddCommand("hello", fli.helloHandler)
 
 	s.AddCommand("cd", fli.cdHandler)
+	s.AddCommand("find", fli.searchHandler)
 	s.AddCommand("ls", fli.lsHandler)
+	s.AddCommand("locate", fli.indexedSearchHandler)
 	s.AddCommand("open", fli.openHandler)
 	s.AddCommand("pwd", fli.pwdHandler)
 
@@ -109,4 +111,35 @@ func (fli *Fli) openHandler(args []string, s *shell.Shell) (string, error) {
 
 func (fli *Fli) pwdHandler(args []string, s *shell.Shell) (string, error) {
 	return fli.fStore.FirebaseURLFromWorkingDirectory("."), nil
+}
+
+// Supports wild card searching
+func (fli *Fli) indexedSearchHandler(args []string, s *shell.Shell) (string, error) {
+	if len(args) < 3 {
+		return "", fmt.Errorf("%s: [path] [key] [value]", args[0])
+	}
+
+	// Add support for searching from top level with ~
+	// Allows user to seach in paths not based on cwd
+	p := args[1]
+	p = fli.fStore.BuildWorkingDirectoryPath(p)
+	key := args[2]
+	value := args[3]
+
+	return fli.fStore.IndexedSearch(p, key, value)
+}
+
+func (fli *Fli) searchHandler(args []string, s *shell.Shell) (string, error) {
+	if len(args) < 3 {
+		return "", fmt.Errorf("%s: [path] [key] [value]", args[0])
+	}
+
+	// Add support for searching from top level with ~
+	// Allows user to seach in paths not based on cwd
+	p := args[1]
+	p = fli.fStore.BuildWorkingDirectoryPath(p)
+	key := args[2]
+	value := args[3]
+
+	return fli.fStore.Search(p, key, value)
 }
